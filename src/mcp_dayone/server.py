@@ -57,11 +57,13 @@ class CreateLocationEntryArgs(BaseModel):
 class ReadRecentEntriesArgs(BaseModel):
     limit: int = Field(default=10, description="Maximum number of entries to return (1-50)")
     journal: str = Field(default="", description="Optional journal name to filter by")
+    full_text: bool = Field(default=False, description="Return full entry text instead of preview (default: False)")
 
 class SearchEntriesArgs(BaseModel):
     search_text: str = Field(description="Text to search for in entry content")
     limit: int = Field(default=20, description="Maximum number of entries to return (1-50)")
     journal: str = Field(default="", description="Optional journal name to filter by")
+    full_text: bool = Field(default=False, description="Return full entry text instead of preview (default: False)")
 
 class ListJournalsFromDbArgs(BaseModel):
     pass
@@ -72,6 +74,7 @@ class GetEntryCountFromDbArgs(BaseModel):
 class GetEntriesByDateArgs(BaseModel):
     target_date: str = Field(description="Target date in MM-DD or YYYY-MM-DD format (e.g., '06-14' for June 14th)")
     years_back: int = Field(default=5, description="How many years back to search (default 5)")
+    full_text: bool = Field(default=False, description="Return full entry text instead of preview (default: False)")
 
 # Global Day One tools instance
 dayone_tools: DayOneTools = None
@@ -257,8 +260,11 @@ async def handle_read_recent_entries(args: ReadRecentEntriesArgs) -> list[TextCo
             starred_str = " ⭐" if entry['starred'] else ""
             tags_str = f" #{' #'.join(entry['tags'])}" if entry['tags'] else ""
             
-            # Truncate text for preview
-            text_preview = entry['text'][:100] + "..." if len(entry['text']) > 100 else entry['text']
+            # Truncate text for preview unless full_text is requested
+            if args.full_text:
+                text_preview = entry['text']
+            else:
+                text_preview = entry['text'][:100] + "..." if len(entry['text']) > 100 else entry['text']
             
             result_lines.append(
                 f"{i}. {date_str}{starred_str} [{entry['journal_name']}]\n"
@@ -302,8 +308,11 @@ async def handle_search_entries(args: SearchEntriesArgs) -> list[TextContent]:
             starred_str = " ⭐" if entry['starred'] else ""
             tags_str = f" #{' #'.join(entry['tags'])}" if entry['tags'] else ""
             
-            # Show more context for search results
-            text_preview = entry['text'][:200] + "..." if len(entry['text']) > 200 else entry['text']
+            # Show more context for search results unless full_text is requested
+            if args.full_text:
+                text_preview = entry['text']
+            else:
+                text_preview = entry['text'][:200] + "..." if len(entry['text']) > 200 else entry['text']
             
             result_lines.append(
                 f"{i}. {date_str}{starred_str} [{entry['journal_name']}]\n"
@@ -419,8 +428,11 @@ async def handle_get_entries_by_date(args: GetEntriesByDateArgs) -> list[TextCon
                 starred_str = " ⭐" if entry['starred'] else ""
                 tags_str = f" #{' #'.join(entry['tags'])}" if entry['tags'] else ""
                 
-                # Show more content for "On This Day" memories
-                text_preview = entry['text'][:300] + "..." if len(entry['text']) > 300 else entry['text']
+                # Show more content for "On This Day" memories unless full_text is requested
+                if args.full_text:
+                    text_preview = entry['text']
+                else:
+                    text_preview = entry['text'][:300] + "..." if len(entry['text']) > 300 else entry['text']
                 
                 result_lines.append(
                     f"   • {date_str}{starred_str} [{entry['journal_name']}]\n"
